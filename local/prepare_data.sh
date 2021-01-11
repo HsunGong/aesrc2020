@@ -3,9 +3,13 @@
 # Copyright 2020 Audio, Speech and Language Processing Group @ NWPU (Author: Xian Shi)
 # Apache 2.0
 
-raw_data=$1     # raw data with metadata, txt and wav
+original_data_dir=/mnt/lustre/sjtu/users/yzl23/work_dir/local_data/is20_accent_aispeech/is20_AESRC_train
+
+data_dir=`pwd`/data/
+train_dir=$data_dir/accent_train
+eval_dir=$data_dir/accent_test
+
 data=$2         # data transformed into kaldi format
-zipped_data=$raw_data/AESRC2020.zip 
 
 stage=2
 feature_cmd="run.pl"
@@ -13,26 +17,32 @@ nj=50
 
 vocab_size=1000
 
-
 # unzip and rename each accent
-if [ $stage -le 1 ];then
-    # unzip $zipped_data
-    mv $raw_data/American\ English\ Speech\ Data $raw_data/US
-    mv $raw_data/British\ English\ Speech\ Data $raw_data/UK
-    mv $raw_data/Chinese\ Speaking\ English\ Speech\ Data $raw_data/CHN 
-    mv $raw_data/Indian\ English\ Speech\ Data $raw_data/IND 
-    mv $raw_data/Portuguese\ Speaking\ English\ Speech\ Data $raw_data/PT 
-    mv $raw_data/Russian\ Speaking\ English\ Speech\ Data $raw_data/RU 
-    mv $raw_data/Japanese\ Speaking\ English\ Speech\ Data $raw_data/JPN 
-    mv $raw_data/Korean\ Speaking\ English\ Speech\ Data $raw_data/KR
-fi
+if [ $stage -le 0 ];then
+    echo "Unzip and rename data from accent aesrc2020"
+    if [[ ! -r $original_data_dir/AESRC2020.zip ]]; then
+        unzip -q $original_data_dir/AESRC2020.zip -d $data_dir/accent_train
+    fi
 
+    raw_data=$data_dir/accent_train
+    if [[ ! -e $data_dir/accent_train/US ]]; then
+        mv $raw_data/American\ English\ Speech\ Data $raw_data/US
+        mv $raw_data/British\ English\ Speech\ Data $raw_data/UK
+        mv $raw_data/Chinese\ Speaking\ English\ Speech\ Data $raw_data/CHN 
+        mv $raw_data/Indian\ English\ Speech\ Data $raw_data/IND 
+        mv $raw_data/Portuguese\ Speaking\ English\ Speech\ Data $raw_data/PT 
+        mv $raw_data/Russian\ Speaking\ English\ Speech\ Data $raw_data/RU 
+        mv $raw_data/Japanese\ Speaking\ English\ Speech\ Data $raw_data/JPN 
+        mv $raw_data/Korean\ Speaking\ English\ Speech\ Data $raw_data/KR
+    fi
+
+    unset raw_data
+fi
 
 # generate kaldi format data for all
 if [ $stage -le 2 ];then 
     echo "Generating kaldi format data."
-    mkdir -p $data/data_all
-    find `pwd`/ -name '*.wav' > $data/data_all/wavpath
+    find $train_dir -name '*.wav' > $train_dir/wavpath
     awk -F'/' '{print $(NF-2)"-"$(NF-1)"-"$NF}' $data/data_all/wavpath | sed 's:\.wav::g' > $data/data_all/uttlist
     paste $data/data_all/uttlist $data/data_all/wavpath > $data/data_all/wav.scp
     python local/tools/preprocess.py $data/data_all/wav.scp $data/data_all/trans $data/data_all/utt2spk # faster than for in shell
